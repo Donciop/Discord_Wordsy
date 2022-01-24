@@ -13,6 +13,12 @@ client = commands.Bot(command_prefix='*', intents=intents, help_command=None)  #
 async def on_ready():
     """ Event handler that is called when bot is turned on. """
     print("Bot's ready")
+    await client.change_presence(  # change the bot's description on Discord member list
+        activity=discord.Activity(
+            type=discord.ActivityType.watching,  # get the "is watching ..." format
+            name="*wordsy to start!"
+        )
+    )
 
 
 @client.command()
