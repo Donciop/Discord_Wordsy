@@ -114,4 +114,4 @@ async def on_command_error(ctx, error):
         await ctx.send(f"{ctx.author.mention}, finish the game before starting new one!")
         return
 
-client.run(os.getenv('ALPHATOKEN'))
+client.run(os.getenv('TOKEN'))
