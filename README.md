@@ -10,6 +10,7 @@ Each time you will know if the letter is in right place (green square) or if the
 The word is chosen from all the 5 letters words in British dictionary.
 
 Under the squares, there is keyboard that shows which characters are used or which characters aren't in the final word.
+
 ![image](https://user-images.githubusercontent.com/39534836/150879438-6f49664c-830b-4481-aca9-c3ccfb4a45d4.png)
 
 ## Tech used
