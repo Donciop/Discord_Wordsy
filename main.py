@@ -11,6 +11,8 @@ client = commands.Bot(command_prefix='*', intents=intents, help_command=None)
 
 @client.command()
 async def wordle(ctx):
+    def check(message: discord.Message):
+        return message.channel == ctx.channel and message.author != ctx.me
     letters = ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p",
                "a", "s", "d", "f", "g", "h", "j", "k", "l",
                "z", "x", "c", "v", "b", "n", "m"]
@@ -28,7 +30,7 @@ async def wordle(ctx):
             await ctx.send(f"You didn't make it :( The word was: {wordle_word}")
             return
         await ctx.send(f"Guess the word! (5 letters) {iterator} / 6 tries")
-        msg = await client.wait_for('message', check=lambda message: message.author == ctx.author)
+        msg = await client.wait_for('message', check=check)
         if any(char.isdigit() for char in msg.content):
             await ctx.send("Word cannot contain numbers!")
             continue
