@@ -52,11 +52,12 @@ async def wordsy(ctx):
         guild_config = guild_configs_file.read()
         guild_config_dict = json.loads(guild_config)
         guild_configs_file.close()
+
     def check(message: discord.Message):
         if guild_config_dict[str(ctx.guild.id)]:
-            return message.channel.id == guild_config_dict[str(ctx.guild.id)] and message.author != ctx.me
+            return message.channel.id == guild_config_dict[str(ctx.guild.id)] and message.author == ctx.author
         else:
-            return message.channel == ctx.channel and message.author != ctx.me
+            return message.channel == ctx.channel and message.author == ctx.author
     # initialize lists that will be used later to store information
     letters = ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p",
                "a", "s", "d", "f", "g", "h", "j", "k", "l",
