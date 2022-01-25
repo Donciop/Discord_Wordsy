@@ -22,11 +22,41 @@ async def on_ready():
 
 
 @client.command()
+@commands.has_permissions(manage_channels=True)
+async def help(ctx):
+    embed = discord.Embed(title="Discord Wordsy", description="For more information, check GitHub", color=0x00ff00)
+    embed.add_field(name="`*channel`", value="If you have permissions to manage channels, use this in channel to set this channel for Discord Wordsy", inline=False)
+    embed.add_field(name="`*wordsy`", value="Starts the game!", inline=False)
+    file = discord.File("Media/w2.png", filename="image.png")
+    embed.set_thumbnail(url="attachment://image.png")
+    await ctx.send(embed=embed, file=file)
+
+
+@client.command()
+async def channel(ctx):
+    with open("JsonData/guild_configs.json") as guild_configs_file:
+        guild_config = guild_configs_file.read()
+        guild_config_dict = json.loads(guild_config)
+        guild_configs_file.close()
+    guild_config_dict[ctx.guild.id] = ctx.channel.id
+    with open("JsonData/guild_configs.json", 'w') as guild_configs_file:
+        json.dump(guild_config_dict, guild_configs_file, indent=6)
+        guild_configs_file.close()
+    await ctx.send(f"{ctx.channel.mention} was set for Discord Wordsy")
+
+
+@client.command()
 @commands.max_concurrency(1, commands.BucketType.user)  # allow only one instance of that command running at the time
-async def wordsy(ctx):
-    # making sure the bot only accepts responses from author of command in current channel
+async def wordly(ctx):
+    with open("JsonData/guild_configs.json") as guild_configs_file:
+        guild_config = guild_configs_file.read()
+        guild_config_dict = json.loads(guild_config)
+        guild_configs_file.close()
     def check(message: discord.Message):
-        return message.channel == ctx.channel and message.author != ctx.me
+        if guild_config_dict[str(ctx.guild.id)]:
+            return message.channel.id == guild_config_dict[str(ctx.guild.id)] and message.author != ctx.me
+        else:
+            return message.channel == ctx.channel and message.author != ctx.me
     # initialize lists that will be used later to store information
     letters = ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p",
                "a", "s", "d", "f", "g", "h", "j", "k", "l",
@@ -50,6 +80,10 @@ async def wordsy(ctx):
     while True:
         if iterator == 7:  # check if we still have tries
             await ctx.send(f"You didn't make it :( The word was: {wordle_word}")
+            return
+        if guild_config_dict[str(ctx.guild.id)] != ctx.channel.id:
+            wordsy_ch = client.get_channel(int(guild_config_dict[str(ctx.guild.id)]))
+            await ctx.send(f"Please use Discord Wordsy in {wordsy_ch.mention}")
             return
         await ctx.send(f"Guess the word! (5 letters) {iterator} / 6 tries")
         # wait for user's response and check channel and author of the command
@@ -120,4 +154,4 @@ async def on_command_error(ctx, error):
         await ctx.send(f"{ctx.author.mention}, finish the game before starting new one!")
         return
 
-client.run(os.getenv('TOKEN'))
+client.run(os.getenv('ALPHATOKEN'))
