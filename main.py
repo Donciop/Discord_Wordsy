@@ -47,7 +47,7 @@ async def channel(ctx):
 
 @client.command()
 @commands.max_concurrency(1, commands.BucketType.user)  # allow only one instance of that command running at the time
-async def wordly(ctx):
+async def wordsy(ctx):
     with open("JsonData/guild_configs.json") as guild_configs_file:
         guild_config = guild_configs_file.read()
         guild_config_dict = json.loads(guild_config)
