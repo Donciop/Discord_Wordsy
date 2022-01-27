@@ -8,6 +8,9 @@ intents = discord.Intents().all()  # Making sure the bot has all the permissions
 intents.members = True
 client = commands.Bot(command_prefix='*', intents=intents, help_command=None)  # Initialize bot
 
+client.load_extension("settings")
+client.load_extension("game")
+
 
 @client.event
 async def on_ready():
@@ -22,131 +25,31 @@ async def on_ready():
 
 
 @client.command()
-@commands.has_permissions(manage_channels=True)
 async def help(ctx):
-    embed = discord.Embed(title="Discord Wordsy", description="For more information, check GitHub", color=0x00ff00)
-    embed.add_field(name="`*channel`", value="If you have permissions to manage channels, use this in channel to set this channel for Discord Wordsy", inline=False)
-    embed.add_field(name="`*wordsy`", value="Starts the game!", inline=False)
-    file = discord.File("Media/w2.png", filename="image.png")
+    embed = discord.Embed(
+        color=0x11f80d,
+        title="📜 DISCORD WORDSY 📜",
+        description="Basic commands"
+    )
+    embed.add_field(
+        name="🖥 MAIN COMMANDS",
+        value="""
+        `*wordsy`
+        Main command used to start the game.
+        """,
+        inline=False
+    )
+    embed.add_field(
+        name="⚙ SETTINGS",
+        value="""
+        `*set_channel`
+        Use this command in specific channel to prevent usage of Discord Wordsy in other channels
+        """,
+        inline=False
+    )
+    file = discord.File('Media/w2.png', filename="image.png")
     embed.set_thumbnail(url="attachment://image.png")
     await ctx.send(embed=embed, file=file)
-
-
-@client.command()
-async def channel(ctx):
-    with open("JsonData/guild_configs.json") as guild_configs_file:
-        guild_config = guild_configs_file.read()
-        guild_config_dict = json.loads(guild_config)
-        guild_configs_file.close()
-    guild_config_dict[ctx.guild.id] = ctx.channel.id
-    with open("JsonData/guild_configs.json", 'w') as guild_configs_file:
-        json.dump(guild_config_dict, guild_configs_file, indent=6)
-        guild_configs_file.close()
-    await ctx.send(f"{ctx.channel.mention} was set for Discord Wordsy")
-
-
-@client.command()
-@commands.max_concurrency(1, commands.BucketType.user)  # allow only one instance of that command running at the time
-async def wordsy(ctx):
-    with open("JsonData/guild_configs.json") as guild_configs_file:
-        guild_config = guild_configs_file.read()
-        guild_config_dict = json.loads(guild_config)
-        guild_configs_file.close()
-
-    def check(message: discord.Message):
-        if guild_config_dict[str(ctx.guild.id)]:
-            return message.channel.id == guild_config_dict[str(ctx.guild.id)] and message.author == ctx.author
-        else:
-            return message.channel == ctx.channel and message.author == ctx.author
-    # initialize lists that will be used later to store information
-    letters = ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p",
-               "a", "s", "d", "f", "g", "h", "j", "k", "l",
-               "z", "x", "c", "v", "b", "n", "m"]
-    used_words = ['', '', '', '', '', '']
-    final_string = [
-            [':black_square_button:', ':black_square_button:', ':black_square_button:', ':black_square_button:', ':black_square_button:'],
-            [':black_square_button:', ':black_square_button:', ':black_square_button:', ':black_square_button:', ':black_square_button:'],
-            [':black_square_button:', ':black_square_button:', ':black_square_button:', ':black_square_button:', ':black_square_button:'],
-            [':black_square_button:', ':black_square_button:', ':black_square_button:', ':black_square_button:', ':black_square_button:'],
-            [':black_square_button:', ':black_square_button:', ':black_square_button:', ':black_square_button:', ':black_square_button:'],
-            [':black_square_button:', ':black_square_button:', ':black_square_button:', ':black_square_button:', ':black_square_button:']
-        ]
-    winning_string = [':green_square:', ':green_square:', ':green_square:', ':green_square:', ':green_square:']
-    with open('JsonData/words_dictionary.json') as wordle_file:  # getting our dictionary from .json file
-        wordle_file_dict = wordle_file.read()
-        wordle = json.loads(wordle_file_dict)
-        wordle_file.close()
-    wordle_word = random.choice(list(wordle.keys()))  # choosing random word from the dictionary
-    iterator = 1
-    while True:
-        if iterator == 7:  # check if we still have tries
-            await ctx.send(f"You didn't make it :( The word was: {wordle_word}")
-            return
-        if guild_config_dict[str(ctx.guild.id)] != ctx.channel.id:
-            wordsy_ch = client.get_channel(int(guild_config_dict[str(ctx.guild.id)]))
-            await ctx.send(f"Please use Discord Wordsy in {wordsy_ch.mention}")
-            return
-        await ctx.send(f"Guess the word! (5 letters) {iterator} / 6 tries")
-        # wait for user's response and check channel and author of the command
-        msg = await client.wait_for('message', check=check)
-        if any(char.isdigit() for char in msg.content):  # check if passed string doesn't have any digits in it
-            await ctx.send("Word cannot contain numbers!")
-            continue
-        if len(msg.content) < 5:  # check if passed string have correct length
-            await ctx.send(f"Word's too short ({len(msg.content)} / 5 letters)")
-            continue
-        if len(msg.content) > 5:
-            await ctx.send(f"Word's too long ({len(msg.content)} / 5 letters)")
-            continue
-        if msg.content in used_words:  # check if the word has been used before
-            await ctx.send("You've already used that word!")
-            continue
-        typed_word = str(msg.content).lower()  # make sure we're working on lowercase letters
-        if typed_word not in wordle:  # check if word from user's response is in dictionary
-            await ctx.send("Word's not in dictionary")
-            continue
-        used_words[iterator-1] = str(msg.content)  # store passed word in list to print it later
-        for index, typed_letter in enumerate(typed_word):  # iterate over every letter in passed word
-            # if the letter's and it's position is correct, we assign green square to this position
-            if typed_letter == wordle_word[index]:
-                final_string[iterator-1][index] = ':green_square:'
-                try:
-                    letters[letters.index(typed_letter)] = f'**{typed_letter}**'  # here we bold the correct letter
-                except:
-                    continue
-            # if the letter's correct but in wrong position, we assign yellow square to this position
-            elif typed_letter in wordle_word:
-                final_string[iterator-1][index] = ':yellow_square:'
-                try:
-                    letters[letters.index(typed_letter)] = f'**{typed_letter}**'
-                except:
-                    continue
-            # if the letter's wrong, we assign black square to this position
-            else:
-                final_string[iterator-1][index] = ':black_large_square:'
-                try:
-                    letters[letters.index(typed_letter)] = f' '  # here we remove the letter from the keyboard
-                except:
-                    continue
-        # here we uppercase the letters to make them more readable
-        final_letters = letters.copy()
-        for lower_letter in final_letters:
-            final_letters[final_letters.index(lower_letter)] = lower_letter.upper()
-        # the final message that is sent every iteration of the while loop contains every squares and whole keyboard
-        await ctx.send(f"{final_string[0][0]} {final_string[0][1]} {final_string[0][2]} {final_string[0][3]} {final_string[0][4]}   {used_words[0].upper()}\n\n"
-                       f"{final_string[1][0]} {final_string[1][1]} {final_string[1][2]} {final_string[1][3]} {final_string[1][4]}   {used_words[1].upper()}\n\n"
-                       f"{final_string[2][0]} {final_string[2][1]} {final_string[2][2]} {final_string[2][3]} {final_string[2][4]}   {used_words[2].upper()}\n\n"
-                       f"{final_string[3][0]} {final_string[3][1]} {final_string[3][2]} {final_string[3][3]} {final_string[3][4]}   {used_words[3].upper()}\n\n"
-                       f"{final_string[4][0]} {final_string[4][1]} {final_string[4][2]} {final_string[4][3]} {final_string[4][4]}   {used_words[4].upper()}\n\n"
-                       f"{final_string[5][0]} {final_string[5][1]} {final_string[5][2]} {final_string[5][3]} {final_string[5][4]}   {used_words[5].upper()}\n\n"
-                       f"{final_letters[0]} {final_letters[1]} {final_letters[2]} {final_letters[3]} {final_letters[4]} {final_letters[5]} {final_letters[6]} {final_letters[7]} {final_letters[8]} {final_letters[9]}\n"
-                       f"    {final_letters[10]} {final_letters[11]} {final_letters[12]} {final_letters[13]} {final_letters[14]} {final_letters[15]} {final_letters[16]} {final_letters[17]} {final_letters[18]}\n"
-                       f"       {final_letters[19]} {final_letters[20]} {final_letters[21]} {final_letters[22]} {final_letters[23]} {final_letters[24]} {final_letters[25]}"
-                       )
-        if winning_string in final_string:  # winning condition
-            await ctx.send(f"You won! The word is: {wordle_word}")
-            return
-        iterator += 1
 
 
 @client.event
