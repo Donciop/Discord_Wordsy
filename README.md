@@ -44,5 +44,3 @@ if typed_word not in wordle:
 ## Adding bot to your server
 
 You can add this bot directly to your Discord server here: [Add me!](https://discord.com/api/oauth2/authorize?client_id=934989894995021866&permissions=101376&scope=bot) or you can join our [Discord server](https://discord.gg/e5daMkFVJP) directly to maybe ask some questions!
-
-However, this bot is not fully configured for being on multiple servers. It's still in early development. If you really want this bot on your Discord server, feel free to contact me on our Discord server.
