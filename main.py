@@ -1,12 +1,8 @@
 import discord  # main packages
 from discord.ext import commands
-import random  # utility packages
 import os
-import json
 
-intents = discord.Intents().all()  # Making sure the bot has all the permissions
-intents.members = True
-client = commands.Bot(command_prefix='*', intents=intents, help_command=None)  # Initialize bot
+client = commands.Bot(command_prefix='*', help_command=None)  # Initialize bot
 
 client.load_extension("settings")
 client.load_extension("game")
@@ -56,6 +52,10 @@ async def help(ctx):
 async def on_command_error(ctx, error):
     if isinstance(error, commands.MaxConcurrencyReached):  # called when you don't have permission to use that command.
         await ctx.send(f"{ctx.author.mention}, finish the game before starting new one!")
+        return
+
+    if isinstance(error, commands.MissingPermissions):
+        await ctx.send("Bot is missing some permission. Make sure that bot has permission to send embed messages.")
         return
 
 client.run(os.getenv('TOKEN'))

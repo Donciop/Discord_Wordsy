@@ -1,9 +1,9 @@
 import discord  # main packages
 from discord.ext import commands
 import random  # utility packages
-from main import client
-import os
 import json
+import os
+from pymongo import MongoClient
 
 
 class Game(commands.Cog):
@@ -16,24 +16,29 @@ class Game(commands.Cog):
         """
         Command used to start the actual game of "Wordsy".
         """
-        with open(
-                "JsonData/guild_configs.json") as guild_configs_file:  # getting server's information about dedicated channel for the bot
-            guild_config = guild_configs_file.read()
-            guild_config_dict = json.loads(guild_config)
-            guild_configs_file.close()
+        mongo_client = MongoClient(os.getenv('MONGOURL'))
+        db = mongo_client['Wordsy_Database']
+        collection = db['wordsy_channels']
+        channel_check = collection.find_one({"_id": ctx.guild.id})
 
-        def check(
-                message: discord.Message):  # checking if we're getting response in right channel and from right person
-            if guild_config_dict[str(ctx.guild.id)]:  # if bot's channel id exists in database, we check if the response is in that channel
-                return message.channel.id == guild_config_dict[str(ctx.guild.id)] and message.author == ctx.author
+        # checking if we're getting response in right channel and from right person
+        def check(message: discord.Message):
+            if not channel_check:
+                # if bot channel id exists in database, we check if the response is in that channel
+                return message.channel == ctx.channel and message.author == ctx.author
             else:
-                return message.channel == ctx.channel and message.author == ctx.author  # if channel's not it database, we just accept it in any channel
+                # if channel's not in database, we just accept it in any channel
+                return message.channel.id == channel_check['channel_id'] and message.author == ctx.author
 
-        # initialize lists that will be used later to store information
+        # initialize our 'keyboard'
         letters = ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p",
                    "a", "s", "d", "f", "g", "h", "j", "k", "l",
                    "z", "x", "c", "v", "b", "n", "m"]
+
+        # initialize list for used words
         used_words = ['', '', '', '', '', '']
+
+        # initialize our game board
         final_string = [
             [':black_square_button:', ':black_square_button:', ':black_square_button:', ':black_square_button:',
              ':black_square_button:'],
@@ -48,35 +53,50 @@ class Game(commands.Cog):
             [':black_square_button:', ':black_square_button:', ':black_square_button:', ':black_square_button:',
              ':black_square_button:']
         ]
+
+        # initialize 'winning condition'
         winning_string = [':green_square:', ':green_square:', ':green_square:', ':green_square:', ':green_square:']
-        with open('JsonData/words_dictionary.json') as wordle_file:  # getting our dictionary from .json file
+
+        # getting our dictionary from .json file
+        with open('JsonData/words_dictionary.json') as wordle_file:
             wordle_file_dict = wordle_file.read()
             wordle = json.loads(wordle_file_dict)
             wordle_file.close()
-        wordle_word = random.choice(list(wordle.keys()))  # choosing random word from the dictionary
+
+        # choosing random word from the dictionary
+        wordle_word = random.choice(list(wordle.keys()))
+
         iterator = 1
         while True:
             if iterator == 7:  # check if we still have tries
-                await ctx.send(f"You didn't make it :( The word was: {wordle_word}")
+                await ctx.send(f"You didn't make it :( The word was: **{wordle_word}**")
                 return
-            if guild_config_dict[str(ctx.guild.id)] != ctx.channel.id:
-                wordsy_ch = client.get_channel(int(guild_config_dict[str(ctx.guild.id)]))
+            if channel_check['channel_id'] != ctx.channel.id:
+                wordsy_ch = self.client.get_channel(channel_check['channel_id'])
                 await ctx.send(f"Please use Discord Wordsy in {wordsy_ch.mention}")
                 return
-            await ctx.send(f"Guess the word! (5 letters) {iterator} / 6 tries")
+            if iterator == 1:
+                await ctx.send(f"Guess the word! **{7 - iterator}** tries left\nType `*end` if You want to end the game")
+            elif iterator == 6:
+                await ctx.send(f"Guess the word! **Last try!**")
+            else:
+                await ctx.send(f"Guess the word! **{7 - iterator}** tries left")
             # wait for user's response and check channel and author of the command
-            msg = await client.wait_for('message', check=check)
+            msg = await self.client.wait_for('message', check=check)
+            if str(msg.content) == "*end":
+                await ctx.send(f"You didn't make it, the word was: **{wordle_word}**")
+                return
             if any(char.isdigit() for char in msg.content):  # check if passed string doesn't have any digits in it
                 await ctx.send("Word cannot contain numbers!")
                 continue
             if len(msg.content) < 5:  # check if passed string have correct length
-                await ctx.send(f"Word's too short ({len(msg.content)} / 5 letters)")
+                await ctx.send(f"Word's too short (**{len(msg.content)}/5 letters**)")
                 continue
             if len(msg.content) > 5:
-                await ctx.send(f"Word's too long ({len(msg.content)} / 5 letters)")
+                await ctx.send(f"Word's too long (**{len(msg.content)}/5 letters**)")
                 continue
             if msg.content in used_words:  # check if the word has been used before
-                await ctx.send("You've already used that word!")
+                await ctx.send(f"You've already used that word!")
                 continue
             typed_word = str(msg.content).lower()  # make sure we're working on lowercase letters
             if typed_word not in wordle:  # check if word from user's response is in dictionary
@@ -84,6 +104,7 @@ class Game(commands.Cog):
                 continue
             used_words[iterator - 1] = str(msg.content)  # store passed word in list to print it later
             for index, typed_letter in enumerate(typed_word):  # iterate over every letter in passed word
+
                 # if the letter's and it's position is correct, we assign green square to this position
                 if typed_letter == wordle_word[index]:
                     final_string[iterator - 1][index] = ':green_square:'
@@ -91,6 +112,7 @@ class Game(commands.Cog):
                         letters[letters.index(typed_letter)] = f'**{typed_letter}**'  # here we bold the correct letter
                     except:
                         continue
+
                 # if the letter's correct but in wrong position, we assign yellow square to this position
                 elif typed_letter in wordle_word:
                     final_string[iterator - 1][index] = ':yellow_square:'
@@ -98,6 +120,7 @@ class Game(commands.Cog):
                         letters[letters.index(typed_letter)] = f'**{typed_letter}**'
                     except:
                         continue
+
                 # if the letter's wrong, we assign black square to this position
                 else:
                     final_string[iterator - 1][index] = ':black_large_square:'
@@ -105,10 +128,12 @@ class Game(commands.Cog):
                         letters[letters.index(typed_letter)] = f' '  # here we remove the letter from the keyboard
                     except:
                         continue
+
             # here we uppercase the letters to make them more readable
             final_letters = letters.copy()
             for lower_letter in final_letters:
                 final_letters[final_letters.index(lower_letter)] = lower_letter.upper()
+
             # the final message that is sent every iteration of the while loop contains every squares and whole keyboard
             await ctx.send(
                 f"{final_string[0][0]} {final_string[0][1]} {final_string[0][2]} {final_string[0][3]} {final_string[0][4]}   {used_words[0].upper()}\n\n"
@@ -121,9 +146,11 @@ class Game(commands.Cog):
                 f"    {final_letters[10]} {final_letters[11]} {final_letters[12]} {final_letters[13]} {final_letters[14]} {final_letters[15]} {final_letters[16]} {final_letters[17]} {final_letters[18]}\n"
                 f"       {final_letters[19]} {final_letters[20]} {final_letters[21]} {final_letters[22]} {final_letters[23]} {final_letters[24]} {final_letters[25]}"
                 )
+
             if winning_string in final_string:  # winning condition
-                await ctx.send(f"You won! The word is: {wordle_word}")
+                await ctx.send(f"You've won! The word was: **{wordle_word}**")
                 return
+
             iterator += 1
 
 
